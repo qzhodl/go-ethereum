@@ -211,6 +211,10 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 			utils.Fatalf("failed to register catalyst service: %v", err)
 		}
 	}
+
+	if ctx.IsSet(utils.EsURLFlag.Name) {
+		params.EsNodeURL = ctx.String(utils.EsURLFlag.Name)
+	}	
 	return stack, backend
 }
 

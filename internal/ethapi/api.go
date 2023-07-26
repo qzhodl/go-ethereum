@@ -1049,7 +1049,13 @@ func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.S
 	if blockOverrides != nil {
 		blockOverrides.Apply(&blockCtx)
 	}
-	evm, vmError := b.GetEVM(ctx, msg, state, header, &vm.Config{NoBaseFee: true}, &blockCtx)
+
+	var isEthStorage = false
+	if ctx.Value(esKey{}) == true {
+		isEthStorage = true
+	}
+
+	evm, vmError := b.GetEVM(ctx, msg, state, header, &vm.Config{NoBaseFee: true, IsEthStorage: isEthStorage}, &blockCtx)
 
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -1132,6 +1138,14 @@ func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrO
 		return nil, newRevertError(result)
 	}
 	return result.Return(), result.Err
+}
+
+type esKey struct{}
+
+// EsCall is similar with Call, and support EthStorage precompiles
+func (s *BlockChainAPI) EsCall(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides) (hexutil.Bytes, error) {	
+	ctx = context.WithValue(ctx, esKey{}, true)
+	return s.Call(ctx, args, blockNrOrHash, overrides, blockOverrides)
 }
 
 func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, gasCap uint64) (hexutil.Uint64, error) {
