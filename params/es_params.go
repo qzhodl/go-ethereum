@@ -1,9 +1,10 @@
 package params
 
 const (
-	EsGetBlobGasPerByte = 3 // Gas price per byte for the esGetBlob precompile.  
+	EsGetBlobPerByteGas = 3 // Per-byte price for an esGetBlob operation.
+	EsGetBlobBaseGas = 50000 // Base price for an esGetBlob operation.  
 )
 
 var (
-	EsNodeURL = "http://localhost"
+	EsNodeURL = "http://localhost:8545"
 )

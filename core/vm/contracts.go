@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -1162,6 +1163,7 @@ type esGetBlob struct{}
 const (
 	esGetBlobInputLength = 128
 	maxDataLenLimitation = 131072 // blob size in proto-danksharding
+	defaultCallTimeout = 1 * time.Second
 )
 
 var (
@@ -1171,11 +1173,11 @@ var (
 
 func (e *esGetBlob) RequiredGas(input []byte) uint64 {
 	if len(input) != esGetBlobInputLength {
-		return params.EsGetBlobGasPerByte * maxDataLenLimitation
+		return params.EsGetBlobPerByteGas * maxDataLenLimitation + params.EsGetBlobBaseGas
 	}
 	
 	len := new(big.Int).SetBytes(getData(input, 64, 32)).Uint64()
-	return params.EsGetBlobGasPerByte * len
+	return params.EsGetBlobPerByteGas * len + params.EsGetBlobBaseGas
 }
 
 func (e *esGetBlob) Run(input []byte) ([]byte, error) {
@@ -1193,16 +1195,21 @@ func (e *esGetBlob) Run(input []byte) ([]byte, error) {
 
 func getBlobFromEsNode(kvIndex uint64, blobHash []byte, off, len uint64) ([]byte, error){
 	var err error
+	ctx := context.Background()
 	if rpcCli == nil {
-		rpcCli, err = rpc.Dial(params.EsNodeURL)
+		dialCtx, cancel := context.WithTimeout(ctx, defaultCallTimeout)
+		rpcCli, err = rpc.DialContext(dialCtx, params.EsNodeURL)
+		cancel()
 		if err != nil {
 			return []byte{}, err
 		}
 	}
 
+	callCtx, cancel := context.WithTimeout(ctx, defaultCallTimeout)
+	defer cancel()
 	var result hexutil.Bytes
 	err = rpcCli.CallContext(
-		context.Background(), 
+		callCtx, 
 		&result, 
 		"es_getBlob", 
 		kvIndex, "0x" + common.Bytes2Hex(blobHash), off, len)
